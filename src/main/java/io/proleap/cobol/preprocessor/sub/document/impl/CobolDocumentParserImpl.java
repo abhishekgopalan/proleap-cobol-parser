@@ -8,6 +8,8 @@
 
 package io.proleap.cobol.preprocessor.sub.document.impl;
 
+import java.util.regex.Pattern;
+
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
@@ -30,6 +32,15 @@ public class CobolDocumentParserImpl implements CobolDocumentParser {
 	protected final String[] triggers = new String[] { "cbl", "copy", "exec sql", "exec sqlims", "exec cics", "exec dli",
 			"process", "replace", "eject", "skip1", "skip2", "skip3", "title" };
 
+	/**
+	 * EXEC DLI with any whitespace between the two words: several blanks, a tab, or
+	 * a line break (optionally with comment lines in between), e.g. EXEC at the end
+	 * of one line and DLI on the next. Only DLI is tolerant like this (SPARKLE fork
+	 * addition); the literal triggers above, including "exec sql", "exec sqlims" and
+	 * "exec cics", are unchanged and keep the behavior of ProLeap 2.4.0.
+	 */
+	protected final Pattern execDliTrigger = Pattern.compile("exec(?:\\s|\\*>[^\\r\\n]*+)+dli");
+
 	protected boolean containsTrigger(final String code, final String[] triggers) {
 		final String codeLowerCase = code.toLowerCase();
 		boolean result = false;
@@ -41,6 +52,10 @@ public class CobolDocumentParserImpl implements CobolDocumentParser {
 				result = true;
 				break;
 			}
+		}
+
+		if (!result) {
+			result = execDliTrigger.matcher(codeLowerCase).find();
 		}
 
 		return result;

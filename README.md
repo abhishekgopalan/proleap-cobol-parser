@@ -219,7 +219,7 @@ the `Scope` and visitor registration, and tests.
 `execSqlImsStatement : EXECSQLIMSLINE+`, a run of opaque `*>EXECSQLIMS` lines without any structure. For DLI
 the structure is wanted, so that shape is not copied:
 
-* `Cobol85Preprocessor.g4` gets `execDliStatement : EXEC DLI charData? END_EXEC DOT?`. The preprocessor
+* `Cobol85Preprocessor.g4` gets `execDliStatement : EXEC NEWLINE* DLI charData? END_EXEC DOT?` (a line break between the two words is allowed, see below). The preprocessor
   replaces the words `EXEC DLI` by the tag `*>EXECDLI` and passes the rest of the block through as
   ordinary text, one output line per source line, so line numbers are unchanged. Only the first line is
   tagged, the other lines are not.
@@ -246,8 +246,16 @@ created by `Scope.addExecDliStatement` from `CobolProcedureStatementVisitorImpl.
 mirroring `ExecSqlImsStatement`. It exposes the parse tree via `getCtx()`, an
 `Cobol85Parser.ExecDliStatementContext`, e.g. `ctx.dliFunction()`, `ctx.dliClause()`.
 
-**Known limits.** The preprocessor trigger is the lower-cased text `exec dli` with a single blank, like the
-other EXEC triggers. EXEC DLI is only recognized as a procedure division statement. Functions beyond the
+**Whitespace between EXEC and DLI (added after 2.4.0-dli.1).** `EXEC DLI` is recognized with any whitespace
+between the two words: several blanks, a tab, or a line break (EXEC at the end of one line, DLI on the next,
+also with comment lines in between). The preprocessor tags the line of `EXEC` and keeps the number of lines
+of the source, so line numbers do not move, and the resulting `ExecDliStatement` equals the single-blank
+form. Only DLI is that tolerant: the `exec sql`, `exec sqlims` and `exec cics` triggers are unchanged and
+behave as in ProLeap 2.4.0 (recognized in the single-blank form when nothing else triggers the
+preprocessor; with another trigger present blanks and tabs are accepted and a line break between EXEC and
+the dialect word is a syntax error), pinned by `ExecWhitespaceOtherDialectsTest`.
+
+**Known limits.** EXEC DLI is only recognized as a procedure division statement. Functions beyond the
 twelve listed (for example ROLB, ROLS, XRST) and the EXEC DLI forms of other DL/I dialects are not in the
 grammar yet and fail as syntax errors. PCB ordinals are not resolved here, that belongs to the consumer.
 

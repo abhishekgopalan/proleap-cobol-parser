@@ -156,10 +156,10 @@ execCicsStatement
    : EXEC CICS charData END_EXEC DOT?
    ;
 
-// exec dli statement
+// exec dli statement (EXEC and DLI may be separated by line breaks; the other EXEC statements are not that tolerant)
 
 execDliStatement
-   : EXEC DLI charData? END_EXEC DOT?
+   : EXEC NEWLINE* DLI charData? END_EXEC DOT?
    ;
 
 // exec sql statement

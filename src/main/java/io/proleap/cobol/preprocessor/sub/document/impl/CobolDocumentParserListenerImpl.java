@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Stack;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -89,16 +91,78 @@ public class CobolDocumentParserListenerImpl extends Cobol85PreprocessorBaseList
 	}
 
 	/**
+	 * Matches the start of an EXEC DLI block: EXEC, then whitespace, line breaks
+	 * and comment lines, then DLI. Group 1 is what lies between EXEC and DLI.
+	 */
+	protected static final Pattern EXEC_DLI_START = Pattern.compile("(?is)^\\s*EXEC((?:\\s|\\*>[^\\r\\n]*+)+?)DLI");
+
+	/**
 	 * Builds the lines of an EXEC DLI block: the "EXEC DLI" words are replaced by
 	 * the EXEC DLI tag in the first line, so that the DLI statement is recognized by
 	 * the main grammar, which parses the remaining words natively. Other than for
 	 * EXEC SQL and EXEC CICS, the following lines are not tagged, because they are
-	 * not passed through as opaque text. The number of lines is preserved.
+	 * not passed through as opaque text. The number of lines is preserved, also when
+	 * DLI starts on a line after EXEC: the tag then stays on the line of EXEC, the
+	 * lines between EXEC and DLI are kept (comment lines as they are, otherwise
+	 * blank), and the rest of the DLI line follows on that line.
 	 */
 	protected String buildDliLines(final String text, final String linePrefix) {
-		final String textWithoutExecDli = text.replaceFirst("(?is)^\\s*EXEC\\s+DLI", "");
+		final Matcher matcher = EXEC_DLI_START.matcher(text);
+		final String textWithoutExecDli;
+		final String gap;
+
+		if (matcher.find()) {
+			textWithoutExecDli = text.substring(matcher.end());
+			gap = matcher.group(1);
+		} else {
+			textWithoutExecDli = text;
+			gap = "";
+		}
 
 		final StringBuffer sb = new StringBuffer(text.length());
+		final boolean dliOnLaterLine = gap.indexOf('\n') >= 0 || gap.indexOf('\r') >= 0;
+
+		if (dliOnLaterLine) {
+			/*
+			 * The tag goes on the line of EXEC, every line break between EXEC and DLI is
+			 * kept (blank, or the comment line that was there), and the rest of the DLI
+			 * line follows on that line, so the lines after the block keep their numbers.
+			 */
+			final String[] gapLines = gap.split("\\r?\\n", -1);
+
+			sb.append(linePrefix + CobolPreprocessor.EXEC_DLI_TAG);
+
+			if (!gapLines[0].trim().isEmpty()) {
+				sb.append(CobolPreprocessor.WS + gapLines[0].trim());
+			}
+
+			for (int i = 1; i < gapLines.length - 1; i++) {
+				sb.append(CobolPreprocessor.NEWLINE);
+				sb.append(linePrefix + gapLines[i].trim());
+			}
+
+			sb.append(CobolPreprocessor.NEWLINE);
+
+			final Scanner scanner = new Scanner(textWithoutExecDli);
+			boolean firstLine = true;
+
+			while (scanner.hasNextLine()) {
+				if (!firstLine) {
+					sb.append(CobolPreprocessor.NEWLINE);
+				}
+
+				sb.append(linePrefix + scanner.nextLine().trim());
+				firstLine = false;
+			}
+
+			if (firstLine) {
+				sb.append(linePrefix);
+			}
+
+			scanner.close();
+			return sb.toString();
+		}
+
 		final Scanner scanner = new Scanner(textWithoutExecDli);
 		boolean firstLine = true;
 
