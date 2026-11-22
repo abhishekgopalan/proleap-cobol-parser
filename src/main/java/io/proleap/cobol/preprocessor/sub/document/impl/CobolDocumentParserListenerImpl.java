@@ -88,6 +88,36 @@ public class CobolDocumentParserListenerImpl extends Cobol85PreprocessorBaseList
 		return sb.toString();
 	}
 
+	/**
+	 * Builds the lines of an EXEC DLI block: the "EXEC DLI" words are replaced by
+	 * the EXEC DLI tag in the first line, so that the DLI statement is recognized by
+	 * the main grammar, which parses the remaining words natively. Other than for
+	 * EXEC SQL and EXEC CICS, the following lines are not tagged, because they are
+	 * not passed through as opaque text. The number of lines is preserved.
+	 */
+	protected String buildDliLines(final String text, final String linePrefix) {
+		final String textWithoutExecDli = text.replaceFirst("(?is)^\\s*EXEC\\s+DLI", "");
+
+		final StringBuffer sb = new StringBuffer(text.length());
+		final Scanner scanner = new Scanner(textWithoutExecDli);
+		boolean firstLine = true;
+
+		while (scanner.hasNextLine()) {
+			final String trimmedLine = scanner.nextLine().trim();
+
+			if (firstLine) {
+				sb.append(linePrefix + CobolPreprocessor.EXEC_DLI_TAG + CobolPreprocessor.WS + trimmedLine);
+				firstLine = false;
+			} else {
+				sb.append(CobolPreprocessor.NEWLINE);
+				sb.append(linePrefix + trimmedLine);
+			}
+		}
+
+		scanner.close();
+		return sb.toString();
+	}
+
 	@Override
 	public CobolDocumentContext context() {
 		return contexts.peek();
@@ -125,6 +155,12 @@ public class CobolDocumentParserListenerImpl extends Cobol85PreprocessorBaseList
 	@Override
 	public void enterExecCicsStatement(final Cobol85PreprocessorParser.ExecCicsStatementContext ctx) {
 		// push a new context for SQL terminals
+		push();
+	}
+
+	@Override
+	public void enterExecDliStatement(final Cobol85PreprocessorParser.ExecDliStatementContext ctx) {
+		// push a new context for DLI terminals
 		push();
 	}
 
@@ -223,6 +259,29 @@ public class CobolDocumentParserListenerImpl extends Cobol85PreprocessorBaseList
 		final String text = TokenUtils.getTextIncludingHiddenTokens(ctx, tokens);
 		final String linePrefix = CobolLine.createBlankSequenceArea(format) + CobolPreprocessor.EXEC_CICS_TAG;
 		final String lines = buildLines(text, linePrefix);
+
+		context().write(lines);
+
+		final String content = context().read();
+		pop();
+
+		context().write(content);
+	}
+
+	@Override
+	public void exitExecDliStatement(final Cobol85PreprocessorParser.ExecDliStatementContext ctx) {
+		// throw away EXEC DLI terminals
+		pop();
+
+		// a new context for the DLI statement
+		push();
+
+		/*
+		 * text
+		 */
+		final String text = TokenUtils.getTextIncludingHiddenTokens(ctx, tokens);
+		final String linePrefix = CobolLine.createBlankSequenceArea(format);
+		final String lines = buildDliLines(text, linePrefix);
 
 		context().write(lines);
 

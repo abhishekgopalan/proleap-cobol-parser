@@ -15,7 +15,7 @@
 grammar Cobol85Preprocessor;
 
 startRule
-   : (compilerOptions | copyStatement | execCicsStatement | execSqlStatement | execSqlImsStatement | replaceOffStatement | replaceArea | ejectStatement | skipStatement | titleStatement | charDataLine | NEWLINE)* EOF
+   : (compilerOptions | copyStatement | execCicsStatement | execDliStatement | execSqlStatement | execSqlImsStatement | replaceOffStatement | replaceArea | ejectStatement | skipStatement | titleStatement | charDataLine | NEWLINE)* EOF
    ;
 
 // compiler options
@@ -154,6 +154,12 @@ compilerOption
 
 execCicsStatement
    : EXEC CICS charData END_EXEC DOT?
+   ;
+
+// exec dli statement
+
+execDliStatement
+   : EXEC DLI charData? END_EXEC DOT?
    ;
 
 // exec sql statement

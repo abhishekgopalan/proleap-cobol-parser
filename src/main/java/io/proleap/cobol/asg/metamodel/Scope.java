@@ -26,6 +26,7 @@ import io.proleap.cobol.Cobol85Parser.EnableStatementContext;
 import io.proleap.cobol.Cobol85Parser.EntryStatementContext;
 import io.proleap.cobol.Cobol85Parser.EvaluateStatementContext;
 import io.proleap.cobol.Cobol85Parser.ExecCicsStatementContext;
+import io.proleap.cobol.Cobol85Parser.ExecDliStatementContext;
 import io.proleap.cobol.Cobol85Parser.ExecSqlImsStatementContext;
 import io.proleap.cobol.Cobol85Parser.ExecSqlStatementContext;
 import io.proleap.cobol.Cobol85Parser.ExhibitStatementContext;
@@ -78,6 +79,7 @@ import io.proleap.cobol.asg.metamodel.procedure.entry.EntryStatement;
 import io.proleap.cobol.asg.metamodel.procedure.evaluate.EvaluateStatement;
 import io.proleap.cobol.asg.metamodel.procedure.execcics.ExecCicsStatement;
 import io.proleap.cobol.asg.metamodel.procedure.execsql.ExecSqlStatement;
+import io.proleap.cobol.asg.metamodel.procedure.execdli.ExecDliStatement;
 import io.proleap.cobol.asg.metamodel.procedure.execsqlims.ExecSqlImsStatement;
 import io.proleap.cobol.asg.metamodel.procedure.exhibit.ExhibitStatement;
 import io.proleap.cobol.asg.metamodel.procedure.exit.ExitStatement;
@@ -144,6 +146,8 @@ public interface Scope extends CobolDivisionElement {
 	EvaluateStatement addEvaluateStatement(EvaluateStatementContext ctx);
 
 	ExecCicsStatement addExecCicsStatement(ExecCicsStatementContext ctx);
+
+	ExecDliStatement addExecDliStatement(ExecDliStatementContext ctx);
 
 	ExecSqlImsStatement addExecSqlImsStatement(ExecSqlImsStatementContext ctx);
 

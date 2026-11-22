@@ -1,12 +1,21 @@
 ProLeap ANTLR4-based parser for COBOL
 =====================================
 
+> **Modified fork notice.** This repository is a **modified fork** of
+> [uwol/proleap-cobol-parser](https://github.com/uwol/proleap-cobol-parser)
+> (Copyright (c) 2017 Ulrich Wolffgang, MIT License, see [LICENSE](LICENSE)). It was forked from the
+> upstream release tag **`v2.4.0`**, commit **`b045d8093aab535a21deee4b4da4f3133d30d028`**, and adds
+> native **EXEC DLI** (IMS DL/I command level) support, see [EXEC DLI support](#exec-dli-support-fork-change)
+> below. Nothing else is changed: the upstream `LICENSE`, the copyright notice and the MIT headers of the
+> grammar files are kept as they are, and COBOL input without EXEC DLI is meant to parse to the same
+> parse trees as stock 2.4.0. The fork's build and dependencies (`pom.xml`) are unchanged from 2.4.0.
+
 This is a **COBOL parser** based on an [ANTLR4 grammar](src/main/antlr4/io/proleap/cobol/Cobol85.g4), 
 which generates an **Abstract Syntax Tree** (AST) and **Abstract Semantic Graph** (ASG) for COBOL code.
 The AST represents plain COBOL source code in a syntax tree structure.
 The ASG is generated from the AST by **semantic analysis** and provides data and control
 flow information (e. g. variable access). EXEC SQL, EXEC SQLIMS and EXEC CICS
-statements are extracted as texts.
+statements are extracted as texts; EXEC DLI statements (this fork) are parsed into a structure.
 
 The parser is developed test-driven, passes the **NIST test suite** and has successfully been **applied to numerous COBOL files** from banking and insurance.
 
@@ -196,6 +205,55 @@ Release process
 * Releases and snapshots are published in the MAVEN repository `maven.proleap.io`.
 * Milestones of the grammar are published in the [ANTLR grammars repo](https://github.com/antlr/grammars-v4).
 
+
+EXEC DLI support (fork change)
+------------------------------
+
+Stock ProLeap 2.4.0 has no `EXEC DLI` support: the preprocessor and the grammar stop at the first block.
+This fork parses every `EXEC DLI ... END-EXEC` block natively. The change is limited to
+`Cobol85.g4`, `Cobol85Preprocessor.g4`, the `CobolDocumentParserListenerImpl` preprocessor hook, the
+new ASG classes under `io.proleap.cobol.asg.metamodel.procedure.execdli`, `StatementTypeEnum.EXEC_DLI`,
+the `Scope` and visitor registration, and tests.
+
+**Grammar design: option (a), tagged first line plus native parsing.** The stock EXEC SQLIMS rule is
+`execSqlImsStatement : EXECSQLIMSLINE+`, a run of opaque `*>EXECSQLIMS` lines without any structure. For DLI
+the structure is wanted, so that shape is not copied:
+
+* `Cobol85Preprocessor.g4` gets `execDliStatement : EXEC DLI charData? END_EXEC DOT?`. The preprocessor
+  replaces the words `EXEC DLI` by the tag `*>EXECDLI` and passes the rest of the block through as
+  ordinary text, one output line per source line, so line numbers are unchanged. Only the first line is
+  tagged, the other lines are not.
+* `Cobol85.g4` gets the token `EXECDLITAG : '*>EXECDLI'` and `execDliStatement : EXECDLITAG dliFunction
+  dliClause* END_EXEC`, a new alternative of `statement` next to `execSqlImsStatement`. The sub-rules are
+  ANTLR rules, no text splitting: `dliFunction` (GU, GN, GNP, GHU, GHN, GHNP, DLET, REPL, ISRT, SCHD, TERM,
+  CHKP), `dliUsingPcbClause` (`USING PCB(x)`), `dliPsbClause` (`PSB(x)` and `PSB((x))`), `dliIdClause`
+  (`ID(x)`), `dliSegmentClause` (`SEGMENT(x)` with `dliIntoPhrase`, `dliFromPhrase`, `dliWherePhrase` =
+  `WHERE(field operator operand [AND|OR ...])` and further options, so `WHERE` belongs to the `SEGMENT` it
+  follows, and ISRT may carry several `SEGMENT` clauses) and the lenient `dliOption` (`NODHABEND`,
+  `SEGLENGTH(...)`, `FIRST`, any keyword with optional operands). Operands are `literal | identifier`.
+  Text the rules cannot parse (for example an unknown function) is a syntax error, never skipped.
+* Why (a) and not (b), a second rule set over tagged blocks: one parse tree with real token positions
+  instead of a second parser run per block, no duplicated grammar, and the EXEC SQL/CICS/SQLIMS mechanism
+  stays untouched.
+* The new words (`GU`, `GN`, `GNP`, `GHU`, `GHN`, `GHNP`, `DLET`, `REPL`, `ISRT`, `SCHD`, `TERM`, `CHKP`, `PCB`,
+  `PSB`, `WHERE`) are lexer tokens, so they are also added to `cobolWord`: programs that use them as
+  ordinary data or paragraph names parse to the same trees as before (checked against stock 2.4.0, see
+  `DliKeywordNamesTest`). `END-EXEC` is a new token `END_EXEC`; it is reserved and appears outside of
+  tagged lines only in EXEC DLI blocks.
+
+**ASG.** `ExecDliStatement` (+ `ExecDliStatementImpl`), statement type `StatementTypeEnum.EXEC_DLI`,
+created by `Scope.addExecDliStatement` from `CobolProcedureStatementVisitorImpl.visitExecDliStatement`,
+mirroring `ExecSqlImsStatement`. It exposes the parse tree via `getCtx()`, an
+`Cobol85Parser.ExecDliStatementContext`, e.g. `ctx.dliFunction()`, `ctx.dliClause()`.
+
+**Known limits.** The preprocessor trigger is the lower-cased text `exec dli` with a single blank, like the
+other EXEC triggers. EXEC DLI is only recognized as a procedure division statement. Functions beyond the
+twelve listed (for example ROLB, ROLS, XRST) and the EXEC DLI forms of other DL/I dialects are not in the
+grammar yet and fail as syntax errors. PCB ordinals are not resolved here, that belongs to the consumer.
+
+**Third-party grammar.** The DL/I rules were written for this fork. The public grammar
+`cschneid-the-elder/mapa` (MIT, Copyright Craig Schneiderwent) was not read and no text was copied
+from it, so no additional third-party notice applies.
 
 License
 -------

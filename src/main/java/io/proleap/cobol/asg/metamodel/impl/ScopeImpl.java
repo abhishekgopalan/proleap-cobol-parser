@@ -40,6 +40,7 @@ import io.proleap.cobol.Cobol85Parser.EvaluateAlsoSelectContext;
 import io.proleap.cobol.Cobol85Parser.EvaluateStatementContext;
 import io.proleap.cobol.Cobol85Parser.EvaluateWhenPhraseContext;
 import io.proleap.cobol.Cobol85Parser.ExecCicsStatementContext;
+import io.proleap.cobol.Cobol85Parser.ExecDliStatementContext;
 import io.proleap.cobol.Cobol85Parser.ExecSqlImsStatementContext;
 import io.proleap.cobol.Cobol85Parser.ExecSqlStatementContext;
 import io.proleap.cobol.Cobol85Parser.ExhibitOperandContext;
@@ -148,6 +149,8 @@ import io.proleap.cobol.asg.metamodel.procedure.execcics.ExecCicsStatement;
 import io.proleap.cobol.asg.metamodel.procedure.execcics.impl.ExecCicsStatementImpl;
 import io.proleap.cobol.asg.metamodel.procedure.execsql.ExecSqlStatement;
 import io.proleap.cobol.asg.metamodel.procedure.execsql.impl.ExecSqlStatementImpl;
+import io.proleap.cobol.asg.metamodel.procedure.execdli.ExecDliStatement;
+import io.proleap.cobol.asg.metamodel.procedure.execdli.impl.ExecDliStatementImpl;
 import io.proleap.cobol.asg.metamodel.procedure.execsqlims.ExecSqlImsStatement;
 import io.proleap.cobol.asg.metamodel.procedure.execsqlims.impl.ExecSqlImsStatementImpl;
 import io.proleap.cobol.asg.metamodel.procedure.exhibit.ExhibitStatement;
@@ -741,6 +744,19 @@ public class ScopeImpl extends CobolDivisionElementImpl implements Scope {
 			final String execCicsText = TagUtils.getUntaggedText(ctx.EXECCICSLINE(), CobolPreprocessor.EXEC_CICS_TAG,
 					CobolPreprocessor.EXEC_END_TAG);
 			result.setExecCicsText(execCicsText);
+
+			registerStatement(result);
+		}
+
+		return result;
+	}
+
+	@Override
+	public ExecDliStatement addExecDliStatement(final ExecDliStatementContext ctx) {
+		ExecDliStatement result = (ExecDliStatement) getASGElement(ctx);
+
+		if (result == null) {
+			result = new ExecDliStatementImpl(programUnit, this, ctx);
 
 			registerStatement(result);
 		}

@@ -174,6 +174,15 @@ public class CobolProcedureStatementVisitorImpl extends AbstractCobolParserVisit
 	}
 
 	@Override
+	public Boolean visitExecDliStatement(final Cobol85Parser.ExecDliStatementContext ctx) {
+		final Scope scope = findScope(ctx);
+
+		scope.addExecDliStatement(ctx);
+
+		return visitChildren(ctx);
+	}
+
+	@Override
 	public Boolean visitExecSqlImsStatement(final Cobol85Parser.ExecSqlImsStatementContext ctx) {
 		final Scope scope = findScope(ctx);
 

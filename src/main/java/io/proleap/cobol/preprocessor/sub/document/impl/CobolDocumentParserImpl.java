@@ -27,8 +27,8 @@ import io.proleap.cobol.preprocessor.sub.document.CobolDocumentParserListener;
  */
 public class CobolDocumentParserImpl implements CobolDocumentParser {
 
-	protected final String[] triggers = new String[] { "cbl", "copy", "exec sql", "exec sqlims", "exec cics", "process",
-			"replace", "eject", "skip1", "skip2", "skip3", "title" };
+	protected final String[] triggers = new String[] { "cbl", "copy", "exec sql", "exec sqlims", "exec cics", "exec dli",
+			"process", "replace", "eject", "skip1", "skip2", "skip3", "title" };
 
 	protected boolean containsTrigger(final String code, final String[] triggers) {
 		final String codeLowerCase = code.toLowerCase();

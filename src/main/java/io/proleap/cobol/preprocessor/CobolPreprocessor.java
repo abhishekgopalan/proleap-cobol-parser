@@ -91,6 +91,8 @@ public interface CobolPreprocessor {
 
 	final static String EXEC_CICS_TAG = "*>EXECCICS";
 
+	final static String EXEC_DLI_TAG = "*>EXECDLI";
+
 	final static String EXEC_END_TAG = "}";
 
 	final static String EXEC_SQL_TAG = "*>EXECSQL";

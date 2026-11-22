@@ -1153,7 +1153,7 @@ sentence
    ;
 
 statement
-   : acceptStatement | addStatement | alterStatement | callStatement | cancelStatement | closeStatement | computeStatement | continueStatement | deleteStatement | disableStatement | displayStatement | divideStatement | enableStatement | entryStatement | evaluateStatement | exhibitStatement | execCicsStatement | execSqlStatement | execSqlImsStatement | exitStatement | generateStatement | gobackStatement | goToStatement | ifStatement | initializeStatement | initiateStatement | inspectStatement | mergeStatement | moveStatement | multiplyStatement | openStatement | performStatement | purgeStatement | readStatement | receiveStatement | releaseStatement | returnStatement | rewriteStatement | searchStatement | sendStatement | setStatement | sortStatement | startStatement | stopStatement | stringStatement | subtractStatement | terminateStatement | unstringStatement | writeStatement
+   : acceptStatement | addStatement | alterStatement | callStatement | cancelStatement | closeStatement | computeStatement | continueStatement | deleteStatement | disableStatement | displayStatement | divideStatement | enableStatement | entryStatement | evaluateStatement | exhibitStatement | execCicsStatement | execDliStatement | execSqlStatement | execSqlImsStatement | exitStatement | generateStatement | gobackStatement | goToStatement | ifStatement | initializeStatement | initiateStatement | inspectStatement | mergeStatement | moveStatement | multiplyStatement | openStatement | performStatement | purgeStatement | readStatement | receiveStatement | releaseStatement | returnStatement | rewriteStatement | searchStatement | sendStatement | setStatement | sortStatement | startStatement | stopStatement | stringStatement | subtractStatement | terminateStatement | unstringStatement | writeStatement
    ;
 
 // accept statement
@@ -1460,6 +1460,99 @@ evaluateValue
 
 execCicsStatement
    : EXECCICSLINE+
+   ;
+
+// exec dli statement
+//
+// The preprocessor tags the first line of an EXEC DLI block with *>EXECDLI (and drops the
+// "EXEC DLI" words); everything after the tag is lexed and parsed natively, up to END-EXEC.
+// DL/I function names are real tokens, but they are also listed in cobolWord, so programs
+// that use them as ordinary names parse as before.
+
+execDliStatement
+   : EXECDLITAG dliFunction dliClause* END_EXEC
+   ;
+
+dliFunction
+   : GU | GN | GNP | GHU | GHN | GHNP | DLET | REPL | ISRT | SCHD | TERM | CHKP
+   ;
+
+dliClause
+   : dliUsingPcbClause | dliPsbClause | dliIdClause | dliSegmentClause | dliOption
+   ;
+
+// USING PCB(operand)
+dliUsingPcbClause
+   : USING PCB LPARENCHAR dliOperand RPARENCHAR
+   ;
+
+// PSB(name) or PSB((variable))
+dliPsbClause
+   : PSB LPARENCHAR (dliParenthesizedOperand | dliOperand) RPARENCHAR
+   ;
+
+// ID(operand), e.g. CHKP ID(checkpoint-id)
+dliIdClause
+   : ID LPARENCHAR dliOperand RPARENCHAR
+   ;
+
+// SEGMENT(name) with the phrases that follow it (INTO, FROM, WHERE, SEGLENGTH, ...)
+dliSegmentClause
+   : SEGMENT LPARENCHAR dliOperand RPARENCHAR dliSegmentPhrase*
+   ;
+
+dliSegmentPhrase
+   : dliIntoPhrase | dliFromPhrase | dliWherePhrase | dliOption
+   ;
+
+dliIntoPhrase
+   : INTO LPARENCHAR dliOperand RPARENCHAR
+   ;
+
+dliFromPhrase
+   : FROM LPARENCHAR dliOperand RPARENCHAR
+   ;
+
+dliWherePhrase
+   : WHERE LPARENCHAR dliCondition RPARENCHAR
+   ;
+
+dliCondition
+   : dliQualification ((AND | OR) dliQualification)*
+   ;
+
+// field operator operand, e.g. ACCNTID = PA-ACCT-ID
+dliQualification
+   : dliFieldName relationalOperator dliOperand
+   ;
+
+dliFieldName
+   : cobolWord
+   ;
+
+// option keywords, e.g. NODHABEND, SEGLENGTH(LENGTH OF X), KEYS(X), FIRST
+dliOption
+   : dliOptionName dliOptionArguments?
+   ;
+
+dliOptionName
+   : IDENTIFIER | FIRST | LAST
+   ;
+
+dliOptionArguments
+   : LPARENCHAR dliOptionArgument (COMMACHAR? dliOptionArgument)* RPARENCHAR
+   ;
+
+dliOptionArgument
+   : dliParenthesizedOperand | dliOperand
+   ;
+
+dliParenthesizedOperand
+   : LPARENCHAR dliOperand RPARENCHAR
+   ;
+
+dliOperand
+   : literal | identifier
    ;
 
 // exec sql statement
@@ -2546,25 +2639,25 @@ cobolWord
    : IDENTIFIER 
    | ABORT | AS | ASCII | ASSOCIATED_DATA | ASSOCIATED_DATA_LENGTH | ATTRIBUTE | AUTO | AUTO_SKIP
    | BACKGROUND_COLOR | BACKGROUND_COLOUR | BEEP | BELL | BINARY | BIT | BLINK | BLOB | BOUNDS
-   | CAPABLE | CCSVERSION | CHANGED | CHANNEL | CLOB | CLOSE_DISPOSITION | COBOL | COMMITMENT | CONTROL_POINT | CONVENTION | CRUNCH | CURSOR
-   | DBCLOB | DEFAULT | DEFAULT_DISPLAY | DEFINITION | DFHRESP | DFHVALUE | DISK | DONTCARE | DOUBLE
+   | CAPABLE | CCSVERSION | CHANGED | CHANNEL | CHKP | CLOB | CLOSE_DISPOSITION | COBOL | COMMITMENT | CONTROL_POINT | CONVENTION | CRUNCH | CURSOR
+   | DBCLOB | DEFAULT | DEFAULT_DISPLAY | DEFINITION | DFHRESP | DFHVALUE | DISK | DLET | DONTCARE | DOUBLE
    | EBCDIC | EMPTY_CHECK | ENTER | ENTRY_PROCEDURE | EOL | EOS | ERASE | ESCAPE | EVENT | EXCLUSIVE | EXPORT | EXTENDED
    | FOREGROUND_COLOR | FOREGROUND_COLOUR | FULL | FUNCTIONNAME | FUNCTION_POINTER
-   | GRID
+   | GHN | GHNP | GHU | GN | GNP | GRID | GU
    | HIGHLIGHT
-   | IMPLICIT | IMPORT | INTEGER
+   | IMPLICIT | IMPORT | INTEGER | ISRT
    | KEPT | KEYBOARD
    | LANGUAGE | LB | LD | LEFTLINE | LENGTH_CHECK | LIBACCESS | LIBPARAMETER | LIBRARY | LIST | LOCAL | LONG_DATE | LONG_TIME | LOWER | LOWLIGHT
    | MMDDYYYY
    | NAMED | NATIONAL | NATIONAL_EDITED | NETWORK | NO_ECHO | NUMERIC_DATE | NUMERIC_TIME
    | ODT | ORDERLY | OVERLINE | OWN
-   | PASSWORD | PORT | PRINTER | PRIVATE | PROCESS | PROGRAM | PROMPT
-   | READER | REAL | RECEIVED | RECURSIVE | REF | REMOTE | REMOVE | REQUIRED | REVERSE_VIDEO
-   | SAVE | SECURE | SHARED | SHAREDBYALL | SHAREDBYRUNUNIT | SHARING | SHORT_DATE | SQL | SYMBOL
-   | TASK | THREAD | THREAD_LOCAL | TIMER | TODAYS_DATE | TODAYS_NAME | TRUNCATED | TYPEDEF
+   | PASSWORD | PCB | PORT | PRINTER | PRIVATE | PROCESS | PROGRAM | PROMPT | PSB
+   | READER | REAL | RECEIVED | RECURSIVE | REF | REMOTE | REMOVE | REPL | REQUIRED | REVERSE_VIDEO
+   | SAVE | SCHD | SECURE | SHARED | SHAREDBYALL | SHAREDBYRUNUNIT | SHARING | SHORT_DATE | SQL | SYMBOL
+   | TASK | TERM | THREAD | THREAD_LOCAL | TIMER | TODAYS_DATE | TODAYS_NAME | TRUNCATED | TYPEDEF
    | UNDERLINE
    | VIRTUAL
-   | WAIT
+   | WAIT | WHERE
    | YEAR | YYYYMMDD | YYYYDDD
    | ZERO_FILL
    ;
@@ -2683,6 +2776,7 @@ CHANGED : C H A N G E D;
 CHANNEL : C H A N N E L;
 CHARACTER : C H A R A C T E R;
 CHARACTERS : C H A R A C T E R S;
+CHKP : C H K P;
 CLASS : C L A S S;
 CLASS_ID : C L A S S MINUSCHAR I D;
 CLOB : C L O B;
@@ -2766,6 +2860,7 @@ DISK : D I S K;
 DISPLAY : D I S P L A Y;
 DISPLAY_1 : D I S P L A Y MINUSCHAR '1';
 DIVIDE : D I V I D E;
+DLET : D L E T;
 DIVISION : D I V I S I O N;
 DONTCARE : D O N T C A R E;
 DOUBLE : D O U B L E;
@@ -2787,6 +2882,7 @@ END_COMPUTE : E N D MINUSCHAR C O M P U T E;
 END_DELETE : E N D MINUSCHAR D E L E T E;
 END_DIVIDE : E N D MINUSCHAR D I V I D E;
 END_EVALUATE : E N D MINUSCHAR E V A L U A T E;
+END_EXEC : E N D MINUSCHAR E X E C;
 END_IF : E N D MINUSCHAR I F;
 END_MULTIPLY : E N D MINUSCHAR M U L T I P L Y;
 END_OF_PAGE : E N D MINUSCHAR O F MINUSCHAR P A G E;
@@ -2843,11 +2939,17 @@ FUNCTIONNAME : F U N C T I O N N A M E;
 FUNCTION_POINTER : F U N C T I O N MINUSCHAR P O I N T E R;
 GENERATE : G E N E R A T E;
 GOBACK : G O B A C K;
+GHN : G H N;
+GHNP : G H N P;
+GHU : G H U;
 GIVING : G I V I N G;
 GLOBAL : G L O B A L;
+GN : G N;
+GNP : G N P;
 GO : G O;
 GREATER : G R E A T E R;
 GRID : G R I D;
+GU : G U;
 GROUP : G R O U P;
 HEADING : H E A D I N G;
 HIGHLIGHT : H I G H L I G H T;
@@ -2876,6 +2978,7 @@ INTO : I N T O;
 INVALID : I N V A L I D;
 INVOKE : I N V O K E;
 IS : I S;
+ISRT : I S R T;
 JUST : J U S T;
 JUSTIFIED : J U S T I F I E D;
 KANJI : K A N J I;
@@ -2964,6 +3067,7 @@ PADDING : P A D D I N G;
 PAGE : P A G E;
 PAGE_COUNTER : P A G E MINUSCHAR C O U N T E R;
 PASSWORD : P A S S W O R D;
+PCB : P C B;
 PERFORM : P E R F O R M;
 PF : P F;
 PH : P H;
@@ -2986,6 +3090,7 @@ PROGRAM : P R O G R A M;
 PROGRAM_ID : P R O G R A M MINUSCHAR I D;
 PROGRAM_LIBRARY : P R O G R A M MINUSCHAR L I B R A R Y;
 PROMPT : P R O M P T;
+PSB : P S B;
 PURGE : P U R G E;
 QUEUE : Q U E U E;
 QUOTE : Q U O T E;
@@ -3014,6 +3119,7 @@ REMARKS : R E M A R K S;
 REMOVAL : R E M O V A L;
 REMOVE : R E M O V E;
 RENAMES : R E N A M E S;
+REPL : R E P L;
 REPLACE : R E P L A C E;
 REPLACING : R E P L A C I N G;
 REPORT : R E P O R T;
@@ -3037,6 +3143,7 @@ ROUNDED : R O U N D E D;
 RUN : R U N;
 SAME : S A M E;
 SAVE : S A V E;
+SCHD : S C H D;
 SCREEN : S C R E E N;
 SD : S D;
 SEARCH : S E A R C H;
@@ -3097,6 +3204,7 @@ TALLY : T A L L Y;
 TALLYING : T A L L Y I N G;
 TASK : T A S K;
 TAPE : T A P E;
+TERM : T E R M;
 TERMINAL : T E R M I N A L;
 TERMINATE : T E R M I N A T E;
 TEST : T E S T;
@@ -3136,6 +3244,7 @@ VIRTUAL : V I R T U A L;
 WAIT : W A I T;
 WHEN : W H E N;
 WHEN_COMPILED : W H E N MINUSCHAR C O M P I L E D;
+WHERE : W H E R E;
 WITH : W I T H;
 WORDS : W O R D S;
 WORKING_STORAGE : W O R K I N G MINUSCHAR S T O R A G E;
@@ -3162,6 +3271,7 @@ DOUBLEQUOTE : '"';
 DOT_FS : '.' ('\r' | '\n' | '\f' | '\t' | ' ')+ | '.' EOF;
 DOT : '.';
 EQUALCHAR : '=';
+EXECDLITAG : '*>EXECDLI';
 EXECCICSTAG : '*>EXECCICS';
 EXECSQLTAG : '*>EXECSQL';
 EXECSQLIMSTAG : '*>EXECSQLIMS';
